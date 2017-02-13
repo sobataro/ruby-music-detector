@@ -2,16 +2,16 @@ GEM
   remote: https://rubygems.org/
   specs:
     narray (0.6.1.2)
-    ruby-audio (1.6.1)
     ruby-fftw3 (1.0.2)
       narray
+    wavefile (0.8.1)
 
 PLATFORMS
   ruby
 
 DEPENDENCIES
-  ruby-audio (~> 1.6, >= 1.6.1)
   ruby-fftw3 (~> 1.0, >= 1.0.2)
+  wavefile (~> 0.8.1)
 
 BUNDLED WITH
-   1.12.3
+   1.14.3

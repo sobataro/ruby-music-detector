@@ -1,10 +1,8 @@
-require 'ruby-audio'
+require 'wavefile'
 require 'numru/fftw3'
 
 class MusicDetector
   include NumRu
-
-  INPUT_BUFFER_SIZE = 1024
 
   TEMPERAMENT_RANGE = -12..24
   A = 440
@@ -27,7 +25,7 @@ class MusicDetector
     puts("input file: #{file} (samplerate: #{samplerate}Hz)") if debug
 
     # bandpath filter (to faster computation)
-    spectrum, frequencies = bpf(spectrum: spectrum, frequencies: frequencies, hpf_freq: HPF_FREQ, lpf_freq: LPF_FREQ)
+    spectrum, frequencies = band_path_filter(spectrum: spectrum, frequencies: frequencies, hpf_freq: HPF_FREQ, lpf_freq: LPF_FREQ)
 
     # prepare for analysis
     log_frequencies = NMath::log(frequencies)
@@ -67,33 +65,39 @@ class MusicDetector
   # @param [Float]  duration duration in the audio file (in seconds)
   # @return [Array<Float>, Float] monoauralized wave and samplerate
   def read_audio_file(file:, seektime:, duration:)
-    RubyAudio::Sound.open(file) do |sound|
-      samplerate = sound.info.samplerate
-      channels = sound.info.channels
+    mono_wave = nil
+    samplerate = nil
 
-      sound.seek((seektime * samplerate).round)
+    WaveFile::Reader.new(file) do |sound|
+      samplerate = sound.format.sample_rate
+      channels = sound.format.channels
 
-      buffer = RubyAudio::Buffer.new(:short, INPUT_BUFFER_SIZE, channels)
+      # seek
+      sound.read((seektime * samplerate).round)
 
+      # read
       sample_count = (duration * samplerate).round
       mono_wave = NArray.sint(sample_count)
 
-      count = 0
-      while count < sample_count
-        read_count = sound.read(buffer, [INPUT_BUFFER_SIZE, sample_count - count].min)
-        read_count.times do |i|
-          mono_wave[count + i] = buffer[i].inject(&:+) / channels # monoauralize
+      sound.read(sample_count).samples.each.with_index do |sample, i|
+        case sample
+        when Array
+          mono_wave[i] = sample.inject(&:+) / channels # normalize to monoral
+          mono_wave[i] *= (2 ** (bits_per_sample - 1)) if Float === sample.first
+        when Fixnum
+          mono_wave[i] = sample
+        when Float
+          mono_wave[i] = sample * (2 ** (bits_per_sample - 1))
+        else
+          raise StandardError("unsupported file: #{file}")
         end
-
-        count += read_count
-        break if read_count < INPUT_BUFFER_SIZE
       end
-
-      [mono_wave, samplerate]
     end
+
+    [mono_wave, samplerate]
   end
 
-  def bpf(spectrum:, frequencies:, hpf_freq:, lpf_freq:)
+  def band_path_filter(spectrum:, frequencies:, hpf_freq:, lpf_freq:)
     bpf_indices = (HPF_FREQ < frequencies) * (frequencies < LPF_FREQ)
     spectrum    = spectrum[bpf_indices]
     frequencies = frequencies[bpf_indices]
