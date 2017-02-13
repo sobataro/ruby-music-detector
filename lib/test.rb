@@ -1,4 +1,5 @@
 require './music_detector/feature_vector_extractor'
+require './music_detector/multiple_linear_regression'
 
 negative_example_dir = ARGV[0]
 positive_example_dir = ARGV[1]
@@ -15,46 +16,39 @@ positive_fvs = Dir.entries(positive_example_dir)
                  .select { |f| f.end_with?('.wav') }
                  .map { |f| p f; fv_extractor.extract_from(file: f, seektime: 0, duration: 3.2) }
 
-NEGATIVE = -1
-POSITIVE = 1
+regression = MusicDetector::MultipleLinearRegression.train_by(negative_example_fvs: negative_fvs, positive_example_fvs: positive_fvs)
 
 negative_count = negative_fvs.count
 positive_count = positive_fvs.count
 fv_length = negative_fvs.first.total
 
-x = NMatrix.float(fv_length + 1, negative_count + positive_count)
+x = NMatrix.float(fv_length, negative_count + positive_count)
 y = NVector.float(negative_count + positive_count)
 
-x[0, true] = NVector.int(negative_count + positive_count).fill(1)
 negative_fvs.each.with_index do |fv, i|
-  x[1..fv_length, i] = fv
-  y[i] = NEGATIVE
+  x[true, i] = fv
+  y[i] = MusicDetector::MultipleLinearRegression::NEGATIVE
 end
 positive_fvs.each.with_index do |fv, i|
-  x[1..fv_length, negative_count + i] = fv
-  y[negative_count + i] = POSITIVE
+  x[true, negative_count + i] = fv
+  y[negative_count + i] = MusicDetector::MultipleLinearRegression::POSITIVE
 end
 
-puts "x:"
-p x
-
-b = (x.transpose * x).inverse * x.transpose * y
-puts "b:"
-p b
-
-calculated_y = x * b
+#calculated_y = x * b
+calculated_y = regression.estimate(x)
 puts "calculated y:"
 p calculated_y
 
+# TODO: extract to method
 tp = 0
 fp = 0
 tn = 0
 fn = 0
 calculated_y.each.with_index do |r, i|
-  tp += 1 if 0 <= r && y[i] == POSITIVE
-  fp += 1 if 0 <= r && y[i] == NEGATIVE
-  fn += 1 if r < 0 && y[i] == POSITIVE
-  tn += 1 if r < 0 && y[i] == NEGATIVE
+  tp += 1 if 0 <= r && y[i] == MusicDetector::MultipleLinearRegression::POSITIVE
+  fp += 1 if 0 <= r && y[i] == MusicDetector::MultipleLinearRegression::NEGATIVE
+  fn += 1 if r < 0 && y[i] == MusicDetector::MultipleLinearRegression::POSITIVE
+  tn += 1 if r < 0 && y[i] == MusicDetector::MultipleLinearRegression::NEGATIVE
 end
 puts("tp=#{tp}, fp=#{fp}, fn=#{fn}, tn=#{tn}")
 puts("accuracy=#{(tp + tn).to_f / (tp + fp + fn + tn)}, precision=#{tp.to_f / (tp + fp)}, recall=#{tp.to_f / (tp + fn)}")
