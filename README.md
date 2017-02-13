@@ -7,3 +7,4 @@ music detector written in Ruby
 - ruby
 - fftw-devel
   - can be installed by `yum install fftw-devel` on RHEL-like systems
+  - can be installed by `brew install fftw` on OS X
