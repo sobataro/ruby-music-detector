@@ -137,15 +137,18 @@ positive_count = positive_fvs.count
 fv_length = negative_fvs.first.total
 
 x = NMatrix.float(fv_length + 1, negative_count + positive_count)
+#x = NMatrix.float(fv_length, negative_count + positive_count)
 y = NVector.float(negative_count + positive_count)
 
 x[0, true] = NVector.int(negative_count + positive_count).fill(1)
 negative_fvs.each.with_index do |fv, i|
   x[1..fv_length, i] = fv
+#  x[true, i] = fv
   y[i] = NEGATIVE
 end
 positive_fvs.each.with_index do |fv, i|
   x[1..fv_length, negative_count + i] = fv
+#  x[true, negative_count + i] = fv
   y[negative_count + i] = POSITIVE
 end
 
@@ -157,12 +160,13 @@ puts "b:"
 p b
 
 calculated_y = x * b
+puts "calculated y:"
+p calculated_y
 
 tp = 0
 fp = 0
 tn = 0
 fn = 0
-p calculated_y
 calculated_y.each.with_index do |r, i|
   tp += 1 if 0 <= r && y[i] == POSITIVE
   fp += 1 if 0 <= r && y[i] == NEGATIVE
@@ -177,3 +181,12 @@ puts("accuracy=#{(tp + tn).to_f / (tp + fp + fn + tn)}, precision=#{tp.to_f / (t
 #     file.write(i.to_s + "\n")
 #   end
 # end
+
+
+# without constant term
+#tp=16, fp=2, fn=11, tn=102
+#accuracy=0.9007633587786259, precision=0.8888888888888888, recall=0.5925925925925926
+
+# with constant term
+#tp=21, fp=1, fn=6, tn=103
+#accuracy=0.9465648854961832, precision=0.9545454545454546, recall=0.7777777777777778
