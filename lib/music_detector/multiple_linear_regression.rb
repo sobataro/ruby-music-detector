@@ -47,9 +47,19 @@ module MusicDetector
       model
     end
 
-    # implement me
-    def self.load(model:)
-      raise RuntimeException 'implement me'
+    def self.import_from(file_path)
+      model = MultipleLinearRegression.new
+
+      lines = File.read(file_path).each_line.to_a
+
+      # skip configurations
+      lines.shift
+
+      # vector b
+      b = lines.first.chomp.split(',').map { |e| e.to_f }
+      model.b = NVector[*b]
+
+      model
     end
 
     # @param [NArray]
@@ -62,6 +72,13 @@ module MusicDetector
         x[1..(input.shape[0]), i] = input[true, i].flatten
       end
       x * @b
+    end
+
+    def export_to(file_path, config:)
+      File.open(file_path, 'w+') do |file|
+        file.puts(config.inspect)
+        file.puts(b.to_a.join(','))
+      end
     end
 
     private
