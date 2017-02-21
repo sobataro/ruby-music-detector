@@ -4,17 +4,11 @@ require 'numru/fftw3'
 module MusicDetector
   class FeatureVectorExtractor
 
-    attr_reader :a, :temperment_range, :in_tune_ratio, :out_of_tune_ratio
+    attr_reader :config
 
-    # @param [Numeric] a                  base A4 frequency of the equal temperament (typically 440)
-    # @param [Range]   temperament_range  range of the equal temperament used to extract feature vector
-    # @param [Float]   in_tune_cents      maximum frequency difference between an in-tune note and the equal temperament
-    # @param [Float]   out_of_tune_ratio  minimum frequency difference between an out-of-tune note and the equal temperament
-    def initialize(a: 440, temperament_range: -12..24, in_tune_cents: 10, out_of_tune_cents: 30)
-      @a                 = a
-      @temperament_range = temperament_range
-      @in_tune_cents     = in_tune_cents
-      @out_of_tune_cents = out_of_tune_cents
+    # @param [MusicDetector::Configuration] config config to process music file
+    def initialize(config)
+      @config = config
     end
 
     # @param [String] file      path of the input audio file
@@ -38,8 +32,8 @@ module MusicDetector
       log_temperament = NMath::log(equal_temperament)
 
       log_bin_freq_half_bandwidth    = (log_temperament[1] - log_temperament[0]) / 2.0
-      log_in_tune_freq_threshold     = log_bin_freq_half_bandwidth * @in_tune_cents / 100.0
-      log_out_of_tune_freq_threshold = log_bin_freq_half_bandwidth * @out_of_tune_cents / 100.0
+      log_in_tune_freq_threshold     = log_bin_freq_half_bandwidth * @config.in_tune_cents / 100.0
+      log_out_of_tune_freq_threshold = log_bin_freq_half_bandwidth * @config.out_of_tune_cents / 100.0
 
       log_temperament.map do |log_bin_center_freq|
         # indices of the target bin (for spectrum)
@@ -96,8 +90,8 @@ module MusicDetector
     end
 
     def band_path_filter(spectrum:, frequencies:)
-      hpf_freq = @a * 2 ** ((@temperament_range.first - 1) / 12.0)
-      lpf_freq = @a * 2 ** ((@temperament_range.last + 1) / 12.0)
+      hpf_freq = @config.a * 2 ** ((@config.temperament_range.first - 1) / 12.0)
+      lpf_freq = @config.a * 2 ** ((@config.temperament_range.last + 1) / 12.0)
 
       bpf_indices = (hpf_freq < frequencies) * (frequencies < lpf_freq)
       spectrum    = spectrum[bpf_indices]
@@ -106,7 +100,7 @@ module MusicDetector
     end
 
     def equal_temperament
-      NArray.to_na(@temperament_range.map { |i| @a * 2 ** (i / 12.0) })
+      NArray.to_na(@config.temperament_range.map { |i| @config.a * 2 ** (i / 12.0) })
     end
   end
 end

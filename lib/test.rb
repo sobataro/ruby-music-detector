@@ -1,12 +1,15 @@
 require './music_detector/feature_vector_extractor'
 require './music_detector/multiple_linear_regression'
+require './music_detector/configuration'
 
 negative_example_dir = ARGV[0]
 positive_example_dir = ARGV[1]
 negative_example_dir = negative_example_dir + '/' unless negative_example_dir.end_with?('/')
 positive_example_dir = positive_example_dir + '/' unless positive_example_dir.end_with?('/')
 
-fv_extractor = MusicDetector::FeatureVectorExtractor.new()
+config = MusicDetector::Configuration.new
+
+fv_extractor = MusicDetector::FeatureVectorExtractor.new(config)
 negative_fvs = Dir.entries(negative_example_dir)
                  .map { |f| "#{negative_example_dir}#{f}" }
                  .select { |f| f.end_with?('.wav') }
